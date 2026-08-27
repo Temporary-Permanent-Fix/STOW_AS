@@ -65,7 +65,8 @@ export default function Home() {
     const base64 = btoa(binary);
     const ok = await uploadToGitHub(slot.path, base64);
     setSaveStatus(p => ({ ...p, [slot.key]: ok ? 'saved' : 'error' }));
-    setTimeout(() => setSaveStatus(p => ({ ...p, [slot.key]: null })), 3000);
+    if (!ok) console.error(`Upload ${slot.key} failed — skontroluj GH_TOKEN a GH_REPO v Vercel Environment Variables`);
+    setTimeout(() => setSaveStatus(p => ({ ...p, [slot.key]: null })), 4000);
   };
 
   // Get available types for current tab
