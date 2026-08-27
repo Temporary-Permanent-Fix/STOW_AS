@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { parseExcelRaw, analyzeRows } from '../lib/excel';
-import { uploadToGitHub, downloadFromGitHub } from '../lib/github';
+import { uploadToGitHub, downloadFromGitHub, checkGitHubConfig } from '../lib/github';
 import StowDashboard from '../components/StowDashboard';
 
 const SLOTS = [
@@ -17,6 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState({});
   const [fileNames, setFileNames] = useState({});
   const [sideOpen, setSideOpen] = useState(true);
+  const [ghConfig, setGhConfig] = useState(null);
 
   // Filters per slot
   const [filters, setFilters] = useState({
@@ -24,8 +25,9 @@ export default function Home() {
     confirm:{ types:null, dateFrom:'', dateTo:'', qtyMin:'', qtyMax:'' },
   });
 
-  // Load from GitHub
+  // Load from GitHub on mount
   useEffect(() => {
+    checkGitHubConfig().then(setGhConfig);
     SLOTS.forEach(async (slot) => {
       setLoading(p => ({ ...p, [slot.key]: true }));
       try {
@@ -63,9 +65,9 @@ export default function Home() {
       binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
     }
     const base64 = btoa(binary);
-    const ok = await uploadToGitHub(slot.path, base64);
-    setSaveStatus(p => ({ ...p, [slot.key]: ok ? 'saved' : 'error' }));
-    if (!ok) console.error(`Upload ${slot.key} failed — skontroluj GH_TOKEN a GH_REPO v Vercel Environment Variables`);
+    const result = await uploadToGitHub(slot.path, base64);
+    setSaveStatus(p => ({ ...p, [slot.key]: result.ok ? 'saved' : 'error' }));
+    if (!result.ok) console.error(`Upload failed: ${result.error}`, result.detail || '');
     setTimeout(() => setSaveStatus(p => ({ ...p, [slot.key]: null })), 4000);
   };
 
@@ -264,6 +266,20 @@ export default function Home() {
                 </div>
               )}
             </>)}
+
+            {/* GitHub status */}
+            <div style={{ borderTop:'1px solid var(--border)', marginTop:16, paddingTop:12 }}>
+              <div style={{ fontSize:'.7rem', color:'var(--text-muted)', letterSpacing:2, fontWeight:700, marginBottom:6 }}>GITHUB SYNC</div>
+              {ghConfig ? (
+                ghConfig.configured ? (
+                  <div style={{ fontSize:'.75rem', color:'var(--accent)' }}>✅ Pripojené · {ghConfig.repo}</div>
+                ) : (
+                  <div style={{ fontSize:'.75rem', color:'var(--red, #F85149)' }}>⚠ Nenastavené — pridaj GH_TOKEN a GH_REPO do Vercel Environment Variables</div>
+                )
+              ) : (
+                <div style={{ fontSize:'.75rem', color:'var(--text-muted)' }}>⏳ Kontrolujem...</div>
+              )}
+            </div>
           </aside>
         )}
       </div>
